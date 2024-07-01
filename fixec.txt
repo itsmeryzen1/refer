@@ -1,0 +1,52 @@
+from telegram import Update
+from telegram.ext import Updater, CommandHandler, CallbackContext
+from telegram import InlineKeyboardMarkup, InlineKeyboardButton
+
+# Replace with your bot token
+TOKEN = '7498823186:AAFRof-uq3v1QZ0XuM6OgjYIeof_XTVFNTM'
+
+# Command to start the bot
+def start(update: Update, context: CallbackContext) -> None:
+    user_id = update.effective_user.id
+    # Check if user has joined the channel
+    if user_has_joined_channel(user_id):
+        keyboard = [
+            [InlineKeyboardButton("Hamster Combo", callback_data='hamster_combo'),
+             InlineKeyboardButton("Pixeltap Combo", callback_data='pixeltap_combo')],
+            [InlineKeyboardButton("Memefi Combo", callback_data='memefi_combo'),
+             InlineKeyboardButton("Gemz Combo", callback_data='gemz_combo')]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        update.message.reply_text('Welcome! Choose a combo:', reply_markup=reply_markup, parse_mode='Markdown')
+    else:
+        update.message.reply_text('Please join our channel to access the bot.')
+
+# Callback query handler
+def button(update: Update, context: CallbackContext) -> None:
+    query = update.callback_query
+    query.answer()
+    query.edit_message_text(f"Selected combo: {query.data}")
+
+# Function to check if user has joined the channel (replace with your logic)
+def user_has_joined_channel(user_id):
+    # Replace this with your channel checking logic
+    return True  # Example: Always return True for simplicity
+
+def main() -> None:
+    updater = Updater(TOKEN)
+
+    dispatcher = updater.dispatcher
+
+    # Start command handler
+    dispatcher.add_handler(CommandHandler("start", start))
+
+    # Callback query handler
+    dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, button))
+
+    # Start the Bot
+    updater.start_polling()
+
+    updater.idle()
+
+if __name__ == '__main__':
+    main()
