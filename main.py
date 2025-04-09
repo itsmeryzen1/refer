@@ -1,49 +1,45 @@
-import telebot
+from telethon.sync import TelegramClient
+from telethon.tl.functions.channels import GetFullChannelRequest
+from telethon.errors import ChatAdminRequiredError
 
-bot = telebot.TeleBot('7595951126:AAFs7xpkKZSmOanZZuglffVZpr3tsRSeZ5Q')
+# === STEP 1: FILL IN YOUR DETAILS BELOW ===
+api_id = 123456           # <--- Your Telegram API ID (from my.telegram.org)
+api_hash = 'your_api_hash_here'  # <--- Your API Hash
+channel_username = 'your_channel_username'  # No @, just the username or ID
+keep_ids = [111, 222]     # List of message IDs to keep (add your safe ones here)
 
-@bot.message_handler(commands=['start'])
-def send_welcome(message):
-    # Check if user is in the channel
-    if not user_in_channel(message.chat.id):
-        bot.send_message(message.chat.id, "Please join our channel to use this bot.")
-        return
-    
-    # Send welcome message with buttons
-    bot.send_message(message.chat.id, "Welcome! Here are today's combos:",
-                     reply_markup=get_combos_keyboard())
+# === DO NOT EDIT BELOW UNLESS YOU KNOW WHAT YOU'RE DOING ===
+with TelegramClient('channel_cleaner_session', api_id, api_hash) as client:
+    # Get channel entity
+    channel = client.get_entity(channel_username)
 
-@bot.callback_query_handler(func=lambda call: True)
-def callback_query(call):
-    if call.data == 'hamster_combo':
-        # Handle Hamster combo update
-        pass
-    elif call.data == 'pixeltap_combo':
-        # Handle Pixeltap combo update
-        pass
-    elif call.data == 'memefi_combo':
-        # Handle Memefi combo update
-        pass
-    elif call.data == 'gemz_combo':
-        # Handle Gemz Combo update
-        pass
+    # Get pinned message ID
+    try:
+        full = client(GetFullChannelRequest(channel))
+        pinned_id = full.full_chat.pinned_msg_id
+        if pinned_id:
+            keep_ids.append(pinned_id)
+            print(f"✔️ Pinned message found and protected (ID: {pinned_id})")
+    except Exception as e:
+        print(f"⚠️ Could not fetch pinned message: {e}")
 
-def user_in_channel(chat_id):
-    # Function to check if user is in the channel
-    # Implement your logic here
-    return True  # Replace with actual logic
+    # Start deleting messages
+    deleted = 0
+    skipped = 0
 
-def get_combos_keyboard():
-    # Function to create and return inline keyboard markup
-    keyboard = telebot.types.InlineKeyboardMarkup()
-    keyboard.row(
-        telebot.types.InlineKeyboardButton('Hamster Combo', callback_data='hamster_combo'),
-        telebot.types.InlineKeyboardButton('Pixeltap Combo', callback_data='pixeltap_combo')
-    )
-    keyboard.row(
-        telebot.types.InlineKeyboardButton('Memefi Combo', callback_data='memefi_combo'),
-        telebot.types.InlineKeyboardButton('Gemz Combo', callback_data='gemz_combo')
-    )
-    return keyboard
+    for message in client.iter_messages(channel):
+        if message.id in keep_ids:
+            print(f"⏭️ Skipping protected message ID: {message.id}")
+            skipped += 1
+            continue
+        try:
+            client.delete_messages(channel, message.id)
+            print(f"🗑️ Deleted message ID: {message.id}")
+            deleted += 1
+        except ChatAdminRequiredError:
+            print("❌ Bot doesn't have delete permissions. Make sure your account is admin.")
+            break
+        except Exception as e:
+            print(f"⚠️ Error deleting message ID {message.id}: {e}")
 
-bot.polling()
+    print(f"\n✅ Done! Deleted: {deleted}, Skipped: {skipped}")
